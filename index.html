@@ -15,6 +15,31 @@
   - Apps Script doGet(e) menerima params seperti biasa, lanjut auto-SSO
 -->
 <html lang="id">
+  <script>
+(async function () {
+  var PORTAL = "https://dprkpckjatim.id";
+  var params = new URLSearchParams(location.search);
+  var sso = params.get("sso") || sessionStorage.getItem("lp_sso") || "";
+
+  // Tidak ada token → minta login lewat portal (yang akan balik ke sini ber-SSO)
+  if (!sso) { location.replace(PORTAL + "/laporan-presensi"); return; }
+
+  try {
+    var r = await fetch(PORTAL + "/api/laporan-presensi/verify?token=" + encodeURIComponent(sso));
+    var d = await r.json();
+    if (!r.ok || !d.success) throw new Error("invalid");
+    // Identitas resmi pegawai — kunci tampilan ke NIP ini
+    window.LAPORAN_NIP = d.nip;
+    window.LAPORAN_NAMA = d.nama;
+    sessionStorage.setItem("lp_sso", sso);
+    // Bersihkan token dari URL
+    history.replaceState(null, "", location.pathname);
+  } catch (e) {
+    sessionStorage.removeItem("lp_sso");
+    location.replace(PORTAL + "/laporan-presensi");
+  }
+})();
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
