@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <!--
   Wrapper Laporan Presensi DPRKPCK Jatim (GitHub Pages).
-  - Wajib SSO: tanpa ?nip & ?token → diarahkan ke portal untuk login.
-  - Dengan SSO → teruskan ke iframe Apps Script, yang mengunci tampilan ke NIP
-    tersebut (mode SSO: pencarian disembunyikan, hanya data sendiri).
+  - Dengan ?nip & ?token (dari portal) → iframe Apps Script mode SSO:
+    pencarian disembunyikan, hanya data pegawai sendiri.
+  - Tanpa SSO (mis. dibuka langsung) → tetap memuat Apps Script, yang
+    menampilkan pesan terkunci "Buka laporan lewat portal dprkpckjatim.id".
+    (Tidak redirect ke portal, supaya tidak gagal/"unable to connect".)
 -->
 <html lang="id">
 <head>
@@ -32,27 +34,29 @@
   <iframe id="gasFrame" title="Laporan Presensi DPRKPCK Jatim" allow="clipboard-write"></iframe>
 
   <script>
-    const PORTAL  = "https://dprkpckjatim.id";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxcsv4ZLvf-daX_qKgNmEUEHhH1m2fYEU5nF4pWfdPL3Eel9JEOzASifA0yElzgoRE2/exec";
 
     const params = new URLSearchParams(location.search);
     const nip    = params.get("nip");
     const token  = params.get("token");
 
-    // WAJIB SSO: dibuka langsung tanpa nip+token → minta login lewat portal,
-    // yang memverifikasi sesi lalu mengembalikan ke sini dengan nip+token.
-    if (!nip || !token) {
-      location.replace(PORTAL + "/laporan-presensi");
-    } else {
-      const iframe = document.getElementById("gasFrame");
-      const loader = document.getElementById("loader");
-      iframe.addEventListener("load", function () {
-        setTimeout(function () { loader.classList.add("hidden"); }, 600);
-      });
-      iframe.src = GAS_URL +
-        "?nip="   + encodeURIComponent(nip) +
-        "&token=" + encodeURIComponent(token);
-      // Bersihkan token dari URL wrapper (refresh akan mengambil token baru via portal)
+    const iframe = document.getElementById("gasFrame");
+    const loader = document.getElementById("loader");
+    iframe.addEventListener("load", function () {
+      setTimeout(function () { loader.classList.add("hidden"); }, 600);
+    });
+
+    // Selalu muat Apps Script. Bila ada SSO → teruskan nip+token (mode terkunci
+    // ke pegawai itu). Bila tidak → Apps Script tampil mode anonim (terkunci,
+    // pencarian nonaktif, diminta lewat portal).
+    let src = GAS_URL;
+    if (nip && token) {
+      src += "?nip=" + encodeURIComponent(nip) + "&token=" + encodeURIComponent(token);
+    }
+    iframe.src = src;
+
+    // Bersihkan token dari URL wrapper bila ada (anti-bookmark/-share).
+    if (nip && token) {
       try { history.replaceState({}, document.title, location.pathname); } catch (_) {}
     }
   </script>
